@@ -16,6 +16,8 @@
   --radius-organic-1: 30% 70% 70% 30% / 30% 30% 70% 70%;
   --radius-organic-2: 60% 40% 30% 70% / 60% 30% 70% 40%;
   --radius-organic-3: 40% 60% 70% 30% / 40% 40% 60% 60%;
+  --radius-leaf-1: 40px 0px 40px 0px;
+  --radius-leaf-2: 0px 40px 0px 40px;
 }
 
 @layer base {
@@ -25,7 +27,21 @@
         radial-gradient(#d1d1d1 0.5px, transparent 0.5px),
         linear-gradient(to right, rgba(125, 107, 93, 0.05) 1px, transparent 1px);
     background-size: 20px 20px, 40px 40px;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
   }
+
+  body::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .scrapbook-tape {

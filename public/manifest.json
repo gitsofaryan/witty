@@ -1,7 +1,7 @@
 {
-  "name": "My Journal",
-  "short_name": "Journal",
-  "description": "A nature-themed journaling app with a scrapbook aesthetic.",
+  "name": "Witty",
+  "short_name": "Witty",
+  "description": "A clever, nature-themed journaling app for mindful reflection.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F9F6F0",
