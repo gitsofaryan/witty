@@ -21,27 +21,34 @@
 }
 
 @layer base {
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
   body {
-    @apply bg-cream text-moss antialiased font-informal min-h-screen;
+    @apply bg-cream text-moss antialiased font-informal min-h-screen overflow-x-hidden;
     background-image: 
         radial-gradient(#d1d1d1 0.5px, transparent 0.5px),
         linear-gradient(to right, rgba(125, 107, 93, 0.05) 1px, transparent 1px);
     background-size: 20px 20px, 40px 40px;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    overscroll-behavior-y: none;
   }
+}
 
-  body::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  display: none !important;
 }
 
 .scrapbook-tape {

@@ -68,6 +68,23 @@ export default function App() {
   useEffect(() => { localStorage.setItem('witty_habits', JSON.stringify(habits)); }, [habits]);
   useEffect(() => { localStorage.setItem('witty_stats', JSON.stringify(stats)); }, [stats]);
 
+  // Weekly Reset Logic
+  useEffect(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayOffset = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    const mondayIso = monday.toISOString().split('T')[0];
+
+    const lastReset = localStorage.getItem('witty_last_reset');
+    if (lastReset !== mondayIso) {
+      setHabits(prev => prev.map(h => ({ ...h, completedDates: [] })));
+      localStorage.setItem('witty_last_reset', mondayIso);
+    }
+  }, []);
+
   const updateScore = (points: number) => {
     setStats(prev => ({ ...prev, totalScore: prev.totalScore + points }));
   };
@@ -147,7 +164,8 @@ export default function App() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: idx * 0.1 }}
-                  className={`absolute ${positions[idx]} p-1.5 bg-white shadow-lg ${shapes[idx]} ${rotations[idx]} transition-transform hover:z-10 hover:rotate-0 active:scale-95`}
+                  onClick={() => handleOpenEntry(entry)}
+                  className={`absolute ${positions[idx]} p-1.5 bg-white shadow-lg ${shapes[idx]} ${rotations[idx]} transition-transform hover:z-10 hover:rotate-0 active:scale-95 cursor-pointer`}
                 >
                   <div className={`aspect-square ${shapes[idx]} bg-center bg-cover grayscale-[20%] sepia-[10%]`} style={{ backgroundImage: `url("${entry.imageUrl || `https://picsum.photos/seed/${entry.id}/400`}")` }}></div>
                   <div className="p-2 text-center">
@@ -170,20 +188,48 @@ export default function App() {
 
   // --- READ TAB ---
   const [isWriting, setIsWriting] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
 
   const handleSaveEntry = () => {
     if (!newTitle.trim() && !newContent.trim()) return;
-    const entry: JournalEntry = {
-      id: Date.now().toString(),
-      title: newTitle || 'Untitled Reflection',
-      content: newContent,
-      date: new Date().toISOString()
-    };
-    setEntries([entry, ...entries]);
-    updateScore(100);
+    
+    if (editingEntryId) {
+      setEntries(prev => prev.map(entry => 
+        entry.id === editingEntryId 
+          ? { ...entry, title: newTitle || 'Untitled Reflection', content: newContent }
+          : entry
+      ));
+    } else {
+      const entry: JournalEntry = {
+        id: Date.now().toString(),
+        title: newTitle || 'Untitled Reflection',
+        content: newContent,
+        date: new Date().toISOString()
+      };
+      setEntries([entry, ...entries]);
+      updateScore(100);
+    }
+    
     setIsWriting(false);
+    setEditingEntryId(null);
+    setNewTitle('');
+    setNewContent('');
+  };
+
+  const handleOpenEntry = (entry: JournalEntry) => {
+    setEditingEntryId(entry.id);
+    setNewTitle(entry.title);
+    setNewContent(entry.content);
+    setIsWriting(true);
+    setActiveTab('read');
+  };
+
+  const handleDeleteEntry = (id: string) => {
+    setEntries(prev => prev.filter(e => e.id !== id));
+    setIsWriting(false);
+    setEditingEntryId(null);
     setNewTitle('');
     setNewContent('');
   };
@@ -204,12 +250,30 @@ export default function App() {
             className="flex flex-col h-full min-h-[60vh]"
           >
             <div className="flex justify-between items-center mb-6">
-              <button onClick={() => setIsWriting(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-earth/5 text-earth/60">
+              <button 
+                onClick={() => {
+                  setIsWriting(false);
+                  setEditingEntryId(null);
+                  setNewTitle('');
+                  setNewContent('');
+                }} 
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-earth/5 text-earth/60"
+              >
                 <span className="material-symbols-outlined text-lg">arrow_back</span>
               </button>
-              <button onClick={handleSaveEntry} className="bg-moss text-white px-5 py-1.5 rounded-full font-bold text-sm shadow-md active:scale-95 transition-transform">
-                Save
-              </button>
+              <div className="flex gap-2">
+                {editingEntryId && (
+                  <button 
+                    onClick={() => handleDeleteEntry(editingEntryId)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-400"
+                  >
+                    <span className="material-symbols-outlined text-lg">delete</span>
+                  </button>
+                )}
+                <button onClick={handleSaveEntry} className="bg-moss text-white px-5 py-1.5 rounded-full font-bold text-sm shadow-md active:scale-95 transition-transform">
+                  {editingEntryId ? 'Update' : 'Save'}
+                </button>
+              </div>
             </div>
             <input 
               type="text" 
@@ -237,7 +301,12 @@ export default function App() {
                 <p className="text-sage text-[10px] font-bold uppercase tracking-widest">Capture your thoughts</p>
               </div>
               <button 
-                onClick={() => setIsWriting(true)} 
+                onClick={() => {
+                  setIsWriting(true);
+                  setEditingEntryId(null);
+                  setNewTitle('');
+                  setNewContent('');
+                }} 
                 className="flex items-center justify-center w-12 h-12 bg-moss text-white rounded-leaf-1 shadow-lg hover:rotate-3 transition-transform active:scale-90"
               >
                 <span className="material-symbols-outlined text-2xl">edit_note</span>
@@ -256,7 +325,8 @@ export default function App() {
                     initial={{ x: -20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="bg-white p-5 rounded-leaf-1 shadow-sm border border-earth/5 active:scale-[0.98] transition-transform"
+                    onClick={() => handleOpenEntry(entry)}
+                    className="bg-white p-5 rounded-leaf-1 shadow-sm border border-earth/5 active:scale-[0.98] transition-transform cursor-pointer"
                   >
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-bold text-moss text-lg leading-tight">{entry.title}</h3>
@@ -376,9 +446,15 @@ export default function App() {
 
   const renderGrow = () => {
     const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayOffset = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - mondayOffset);
+    
     const days = Array.from({length: 7}).map((_, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() - (6 - i));
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
       return d.toISOString().split('T')[0];
     });
 
@@ -442,12 +518,13 @@ export default function App() {
   };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-md mx-auto bg-cream selection:bg-sage/30 no-scrollbar">
-      <header className="flex items-center justify-between px-6 pt-6 pb-2">
+    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-cream selection:bg-sage/30 no-scrollbar touch-pan-y">
+      <header className="flex items-center justify-between px-6 pt-8 pb-2 sticky top-0 bg-cream/80 backdrop-blur-md z-[60]">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-moss rounded-leaf-1 flex items-center justify-center text-cream shadow-md">
-            <span className="material-symbols-outlined text-xl">auto_awesome</span>
-          </div>
+          <motion.div 
+            whileTap={{ scale: 0.9 }}
+            className="w-10 h-10 bg-moss rounded-[50%_50%_50%_50%/60%_60%_40%_40%] shadow-md"
+          ></motion.div>
           <h1 className="text-2xl font-bold font-handwritten text-earth tracking-tight">Witty</h1>
         </div>
         <div className="flex flex-col items-end">
@@ -456,42 +533,52 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 no-scrollbar">
-        {activeTab === 'soul' && renderSoul()}
-        {activeTab === 'read' && renderRead()}
-        {activeTab === 'quiet' && renderQuiet()}
-        {activeTab === 'grow' && renderGrow()}
+      <main className="flex-1 no-scrollbar pb-32">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === 'soul' && renderSoul()}
+            {activeTab === 'read' && renderRead()}
+            {activeTab === 'quiet' && renderQuiet()}
+            {activeTab === 'grow' && renderGrow()}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 px-4">
-        <div className="flex w-full max-w-[320px] justify-between items-center bg-white/90 backdrop-blur-xl px-2 py-2 rounded-full border border-white/50 shadow-2xl">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-8 px-6">
+        <div className="flex w-full max-w-[280px] justify-between items-center bg-white/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-earth/5">
           <button 
             onClick={() => setActiveTab('read')} 
-            className={`flex flex-col items-center justify-center w-14 h-10 rounded-full transition-all ${activeTab === 'read' ? 'bg-moss text-cream shadow-md' : 'text-earth/40 hover:text-sage'}`}
+            className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-90 ${activeTab === 'read' ? 'text-moss' : 'text-earth/40'}`}
           >
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: activeTab === 'read' ? "'FILL' 1" : "'FILL' 0" }}>auto_stories</span>
-            <p className="text-[7px] uppercase font-bold tracking-tighter mt-0.5">Reflect</p>
+            <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: activeTab === 'read' ? "'FILL' 1" : "'FILL' 0" }}>auto_stories</span>
+            <p className="text-[9px] uppercase font-bold tracking-widest">Read</p>
           </button>
           <button 
             onClick={() => setActiveTab('quiet')} 
-            className={`flex flex-col items-center justify-center w-14 h-10 rounded-full transition-all ${activeTab === 'quiet' ? 'bg-moss text-cream shadow-md' : 'text-earth/40 hover:text-sage'}`}
+            className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-90 ${activeTab === 'quiet' ? 'text-moss' : 'text-earth/40'}`}
           >
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: activeTab === 'quiet' ? "'FILL' 1" : "'FILL' 0" }}>dark_mode</span>
-            <p className="text-[7px] uppercase font-bold tracking-tighter mt-0.5">Quiet</p>
+            <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: activeTab === 'quiet' ? "'FILL' 1" : "'FILL' 0" }}>dark_mode</span>
+            <p className="text-[9px] uppercase font-bold tracking-widest">Quiet</p>
           </button>
           <button 
             onClick={() => setActiveTab('grow')} 
-            className={`flex flex-col items-center justify-center w-14 h-10 rounded-full transition-all ${activeTab === 'grow' ? 'bg-moss text-cream shadow-md' : 'text-earth/40 hover:text-sage'}`}
+            className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-90 ${activeTab === 'grow' ? 'text-moss' : 'text-earth/40'}`}
           >
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: activeTab === 'grow' ? "'FILL' 1" : "'FILL' 0" }}>potted_plant</span>
-            <p className="text-[7px] uppercase font-bold tracking-tighter mt-0.5">Grow</p>
+            <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: activeTab === 'grow' ? "'FILL' 1" : "'FILL' 0" }}>potted_plant</span>
+            <p className="text-[9px] uppercase font-bold tracking-widest">Grow</p>
           </button>
           <button 
             onClick={() => setActiveTab('soul')} 
-            className={`flex flex-col items-center justify-center w-14 h-10 rounded-full transition-all ${activeTab === 'soul' ? 'bg-moss text-cream shadow-md' : 'text-earth/40 hover:text-sage'}`}
+            className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-90 ${activeTab === 'soul' ? 'text-moss' : 'text-earth/40'}`}
           >
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: activeTab === 'soul' ? "'FILL' 1" : "'FILL' 0" }}>face_6</span>
-            <p className="text-[7px] uppercase font-bold tracking-tighter mt-0.5">Soul</p>
+            <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: activeTab === 'soul' ? "'FILL' 1" : "'FILL' 0" }}>face_6</span>
+            <p className="text-[9px] uppercase font-bold tracking-widest">Soul</p>
           </button>
         </div>
       </nav>
